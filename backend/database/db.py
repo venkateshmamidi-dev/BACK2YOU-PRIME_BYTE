@@ -821,7 +821,23 @@ def list_all_matches(user_id: Optional[str] = None, limit: int = 20, min_confide
     cursor.execute(query, tuple(params))
     rows = cursor.fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    results = []
+    for r in rows:
+        d = dict(r)
+        d["confidence_score"] = d.get("final_confidence", 0.0)
+        d["image_score"] = d.get("image_similarity", 0.0)
+        d["text_score"] = d.get("text_similarity", 0.0)
+        d["location_score"] = d.get("location_similarity", 0.0)
+        d["lost_item_title"] = d.get("lost_title")
+        d["lost_item_category"] = d.get("lost_category")
+        d["lost_item_location"] = d.get("lost_location")
+        d["lost_item_image"] = d.get("lost_image")
+        d["found_item_title"] = d.get("found_title")
+        d["found_item_category"] = d.get("found_category")
+        d["found_item_location"] = d.get("found_location")
+        d["found_item_image"] = d.get("found_image")
+        results.append(d)
+    return results
 
 def update_user_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
     conn = get_db_connection()

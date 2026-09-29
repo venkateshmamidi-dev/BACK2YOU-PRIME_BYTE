@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,11 +18,31 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Enable CORS for all local and deployed origins
+# Configure CORS origins
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    allowed_origins = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
+else:
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:5000",
+        "http://localhost:5500",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5000",
+        "http://127.0.0.1:5500",
+        "http://127.0.0.1:8000",
+    ]
+
+frontend_url = os.getenv("FRONTEND_URL", "").rstrip("/")
+if frontend_url and frontend_url not in allowed_origins:
+    allowed_origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allowed_origins if allowed_origins_env else ["*"],
+    allow_origin_regex=r"https?://.*" if not allowed_origins_env else None,
+    allow_credentials=True if allowed_origins_env else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -49,45 +70,47 @@ def startup_event():
     print("[Back2You] Initializing database and services...")
     init_db()
     
-    # Auto-seed initial test items into database if empty
+    # Auto-seed initial benchmark items into database if empty
     try:
-        from ml.evaluation import load_dataset
-        from backend.api.items import process_item_ai_embeddings
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM items")
-        count = cursor.fetchone()[0]
-        cursor.execute("SELECT id FROM users WHERE email = 'alex@campus.edu'")
-        alex_row = cursor.fetchone()
-        cursor.execute("SELECT id FROM users WHERE email = 'sarah@campus.edu'")
-        sarah_row = cursor.fetchone()
-        conn.close()
+        seed_path = Path(__file__).resolve().parent.parent / "database" / "seed_data.json"
+        if seed_path.exists():
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM items")
+            count = cursor.fetchone()[0]
+            cursor.execute("SELECT id FROM users WHERE email = 'alex@campus.edu'")
+            alex_row = cursor.fetchone()
+            cursor.execute("SELECT id FROM users WHERE email = 'sarah@campus.edu'")
+            sarah_row = cursor.fetchone()
+            conn.close()
 
-        if count == 0 and alex_row and sarah_row:
-            data = load_dataset()
-            alex_id = alex_row[0]
-            sarah_id = sarah_row[0]
-            for item in data.get("items", []):
-                uid = alex_id if item["type"] == "lost" else sarah_id
-                item_data = {
-                    "id": item["id"],
-                    "user_id": uid,
-                    "type": item["type"],
-                    "title": item["title"],
-                    "category": item["category"],
-                    "description": item["description"],
-                    "brand": item.get("brand", ""),
-                    "color": item.get("color", ""),
-                    "distinguishing_features": item.get("distinguishing_features", ""),
-                    "image_url": None,
-                    "location": item["location"],
-                    "event_date": item["event_date"],
-                    "event_time": item["event_time"],
-                    "status": "ACTIVE"
-                }
-                new_item = create_item(item_data)
-               # process_item_ai_embeddings(new_item)
-            print("[Back2You] Seeded initial campus lost & found benchmark reports.")
+            if count == 0 and alex_row and sarah_row:
+                with open(seed_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                alex_id = alex_row[0]
+                sarah_id = sarah_row[0]
+                for item in data.get("items", []):
+                    uid = alex_id if item["type"] == "lost" else sarah_id
+                    item_data = {
+                        "id": item["id"],
+                        "user_id": uid,
+                        "type": item["type"],
+                        "title": item["title"],
+                        "category": item["category"],
+                        "description": item["description"],
+                        "brand": item.get("brand", ""),
+                        "color": item.get("color", ""),
+                        "distinguishing_features": item.get("distinguishing_features", ""),
+                        "image_url": None,
+                        "location": item["location"],
+                        "event_date": item["event_date"],
+                        "event_time": item["event_time"],
+                        "status": "ACTIVE"
+                    }
+                    new_item = create_item(item_data)
+                    from backend.api.items import process_item_ai_embeddings
+                    process_item_ai_embeddings(new_item)
+                print("[Back2You] Seeded initial campus lost & found benchmark reports.")
     except Exception as e:
         print(f"[Back2You] Startup seed note: {e}")
 
@@ -133,4 +156,6 @@ def serve_js(file_name: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)
+

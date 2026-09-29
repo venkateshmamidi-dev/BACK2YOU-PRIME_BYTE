@@ -22,9 +22,9 @@ class Settings(BaseSettings):
     SQLITE_DB_PATH: str = str(BASE_DIR / "back2you.db")
     UPLOAD_DIR: str = str(BASE_DIR / "uploads")
 
-    # Model configuration
-    SENTENCE_MODEL_NAME: str = os.getenv("SENTENCE_MODEL_NAME", "all-MiniLM-L6-v2")
-    VISION_MODEL_ENABLED: bool = True
+    # CORS / Deployment origins
+    ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "")
 
     # Matching Weights (Configurable)
     WEIGHT_IMAGE: float = 0.40
@@ -38,3 +38,4 @@ class Settings(BaseSettings):
         extra = "allow"
 
 settings = Settings()
+

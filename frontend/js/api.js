@@ -5,9 +5,11 @@
  * and decoupled frontend static server (e.g. python -m http.server 5500).
  */
 
-const API_BASE = (window.location.port === "8000" || window.location.port === "")
-    ? "/api"
-    : `${window.location.protocol}//${window.location.hostname}:8000/api`;
+const API_BASE = window.BACK2YOU_API_URL
+    || (window.__ENV__ && window.__ENV__.API_URL)
+    || ((window.location.port === "8000" || window.location.port === "")
+        ? "/api"
+        : `${window.location.protocol}//${window.location.hostname}:8000/api`);
 
 async function apiFetch(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
