@@ -226,7 +226,8 @@
             const result = await API.register({
                 email: document.getElementById("email").value,
                 password: pw,
-                full_name: `${document.getElementById("first-name").value} ${document.getElementById("last-name").value}`.trim(),
+                name: `${document.getElementById("first-name").value} ${document.getElementById("last-name").value}`.trim(),
+                role:"STUDENT",
                 student_id: document.getElementById("student-id").value || undefined,
                 department: document.getElementById("department").value || undefined,
                 year_of_study: document.getElementById("year").value || undefined,
