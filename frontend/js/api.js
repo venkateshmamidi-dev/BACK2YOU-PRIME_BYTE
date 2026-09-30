@@ -35,7 +35,19 @@ async function apiFetch(endpoint, options = {}) {
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-            const errorMsg = data.detail || data.message || "An unexpected error occurred. Please try again.";
+           // const errorMsg = data.detail || data.message || "An unexpected error occurred. Please try again.";
+            let errorMsg = data.detail || data.message || "An unexpected error occurred. Please try again.";
+
+            if (Array.isArray(errorMsg)) {
+                errorMsg = errorMsg
+                    .map(err => err.msg || JSON.stringify(err))
+                    .join(", ");
+            } else if (typeof errorMsg === "object") {
+                errorMsg = JSON.stringify(errorMsg);
+            }
+
+
+            
             // If unauthorized on protected route, clear session and redirect if necessary
             if (response.status === 401 && !window.location.pathname.includes("login.html") && !window.location.pathname.includes("register.html")) {
                 localStorage.removeItem("back2you_token");
